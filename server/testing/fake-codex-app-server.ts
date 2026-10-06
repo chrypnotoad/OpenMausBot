@@ -440,7 +440,9 @@ process.stdin.on("data", (chunk) => {
         } else if (msg.params?.permissions && (!experimentalApi || mode === "config-profile-unsupported")) {
           out({ jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "experimental API required for permissions" } });
         } else {
-          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: "codex-thread-1" }, model: "fake-codex-model", sandbox: resolvedSandbox(msg.params ?? {}) } });
+          threadReply({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: "codex-thread-1" },
+            model: mode.startsWith("background-text") ? process.env.FAKE_CODEX_BACKGROUND_MODEL ?? msg.params?.model : "fake-codex-model",
+            sandbox: resolvedSandbox(msg.params ?? {}) } });
         }
         break;
       case "turn/start": {

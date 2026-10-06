@@ -66,6 +66,12 @@ describe('Codex background text generation (isolated app-server)', () => {
     const engine = await create(mode);
     await expect(engine.generateText!('Only text')).rejects.toThrow(/non-text action|tool or approval/);
   });
+  it('books the server-resolved helper model', async () => {
+    const engine = await create('background-text', {FAKE_CODEX_BACKGROUND_MODEL: 'resolved-model'});
+    const onUsage = vi.fn();
+    await engine.generateText!('A model alias', {onUsage});
+    expect(onUsage).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({model: 'resolved-model'}));
+  });
   it('uses ChatGPT plan authentication and its catalog model without an API-key fallback', async () => {
     vi.spyOn(ChatGptPlanAuthController.prototype, 'models').mockResolvedValue({default: 'plan-model', options: [{id: 'plan-model', label: 'Fixture'}]});
     const token = vi.spyOn(ChatGptPlanAuthController.prototype, 'accessToken').mockResolvedValue('synthetic-plan-token');
@@ -110,6 +116,13 @@ describe('Codex background text generation (isolated app-server)', () => {
     const engine = await create();
     const controller = new AbortController(); controller.abort();
     await expect(engine.generateText!('Do not run', {signal: controller.signal})).rejects.toThrow(/aborted/);
+  });
+  it('refuses inference when Codex ignores native-tool disabling', async () => {
+    const engine = await create('background-text', {FAKE_CODEX_IGNORE_FEATURES: '1'});
+    await expect(engine.generateText!('Do not run')).rejects.toThrow(/tool disabling/);
+    // The fake writes this file at thread/start, so no file proves that even
+    // creating the inference session was refused after config/read.
+    expect(existsSync(dump)).toBe(false);
   });
   it('captures a preference into memory and About me through the real upkeep pipeline', async () => {
     const engine = await create('background-text', {FAKE_CODEX_TEXT_REPLY: JSON.stringify([
