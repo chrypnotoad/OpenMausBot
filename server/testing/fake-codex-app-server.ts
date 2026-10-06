@@ -110,6 +110,7 @@ let developerInstructions = "";
 let resumedThread: string | null = null;
 let decision: unknown = null;
 let experimentalApi = false;
+let backgroundText = false;
 
 const out = (obj: unknown) => process.stdout.write(JSON.stringify(obj) + "\n");
 let nativeThreadId = "codex-thread-1";
@@ -182,6 +183,9 @@ const writeDumpAtomic = (path: string, contents: string): void => {
   }
 };
 const dump = () => {
+  // Generic text helpers must not replace a foreground fixture's transcript,
+  // launch evidence, or scripted room turn. Dedicated helper tests opt in.
+  if (backgroundText && !mode.startsWith("background-text")) return;
   if (process.env.FAKE_CODEX_DUMP) {
     writeDumpAtomic(
       process.env.FAKE_CODEX_DUMP,
@@ -287,6 +291,7 @@ process.stdin.on("data", (chunk) => {
 
     switch (msg.method) {
       case "initialize":
+        backgroundText = msg.params?.clientInfo?.name === "openmausbot_memory";
         experimentalApi = msg.params?.capabilities?.experimentalApi === true;
         out({ jsonrpc: "2.0", id: msg.id, result: { ok: true } });
         break;
@@ -446,7 +451,7 @@ process.stdin.on("data", (chunk) => {
         }
         break;
       case "turn/start": {
-        if (mode.startsWith("background-text")) {
+        if (backgroundText || mode.startsWith("background-text")) {
           dump();
           out({ jsonrpc: "2.0", id: msg.id, result: { turn: { id: nativeTurnId } } });
           if (mode === "background-text-hang") break;

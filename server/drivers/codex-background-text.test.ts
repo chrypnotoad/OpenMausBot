@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, watch } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, watch, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -71,6 +71,13 @@ describe('Codex background text generation (isolated app-server)', () => {
     const onUsage = vi.fn();
     await engine.generateText!('A model alias', {onUsage});
     expect(onUsage).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({model: 'resolved-model'}));
+  });
+  it('keeps generic helper calls out of foreground fake-provider evidence', async () => {
+    const engine = await create('happy', {FAKE_CODEX_ROOM_PLAN: join(scratch, 'must-not-read-room-plan.json')});
+    const foreground = JSON.stringify({fixture: 'foreground turn evidence'});
+    writeFileSync(dump, foreground);
+    expect(await engine.generateText!('A background title')).toBe('background result');
+    expect(readFileSync(dump, 'utf8')).toBe(foreground);
   });
   it('uses ChatGPT plan authentication and its catalog model without an API-key fallback', async () => {
     vi.spyOn(ChatGptPlanAuthController.prototype, 'models').mockResolvedValue({default: 'plan-model', options: [{id: 'plan-model', label: 'Fixture'}]});
