@@ -444,6 +444,21 @@ process.stdin.on("data", (chunk) => {
         }
         break;
       case "turn/start": {
+        if (mode.startsWith("background-text")) {
+          dump();
+          out({ jsonrpc: "2.0", id: msg.id, result: { turn: { id: nativeTurnId } } });
+          if (mode === "background-text-hang") break;
+          notify("item/completed", { item: { type: "agentMessage", text: "FOREIGN" }, threadId: "foreign-thread" });
+          notify("item/completed", { item: { type: "agentMessage", text: "STALE" }, turnId: "stale-turn" });
+          if (mode === "background-text-tool") notify("item/started", { item: { type: "commandExecution" } });
+          else if (mode === "background-text-approval") out({ jsonrpc: "2.0", id: 200, method: "item/commandExecution/requestApproval", params: { threadId: nativeThreadId } });
+          else {
+            notify("thread/tokenUsage/updated", { tokenUsage: { last: { inputTokens: 7, outputTokens: 3, cachedInputTokens: 2 } } });
+            notify("item/completed", { item: { type: "agentMessage", text: process.env.FAKE_CODEX_TEXT_REPLY ?? "background result" } });
+            notify("turn/completed", { turn: { id: nativeTurnId, status: "completed" } });
+          }
+          break;
+        }
         dump();
         nativeThreadId = msg.params?.threadId ?? nativeThreadId;
         // crash script for close-path retry tests: die before
